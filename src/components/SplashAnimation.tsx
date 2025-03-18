@@ -31,7 +31,7 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
 
   return (
     <div className={cn(
-      "fixed inset-0 flex items-center justify-center z-50 bg-gradient-to-r from-blue-500/20 to-blue-600/20 backdrop-blur-xl",
+      "fixed inset-0 flex items-center justify-center z-50 bg-gradient-to-r from-blue-500/30 to-indigo-600/30 backdrop-blur-xl",
       animationState === 'initial' && 'opacity-0',
       animationState === 'animate' && 'opacity-100 transition-opacity duration-700',
       animationState === 'exit' && 'opacity-0 transition-opacity duration-500'
@@ -43,18 +43,18 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
         animationState === 'exit' && 'scale-110 opacity-0 transition-all duration-500'
       )}>
         <div className="relative">
-          <div className="absolute inset-0 rounded-full bg-blue-500/30 animate-pulse blur-xl"></div>
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/40 to-indigo-500/40 animate-pulse blur-xl"></div>
           <div className="relative">
             <Logo size="lg" className="text-4xl md:text-5xl animate-float" />
           </div>
         </div>
         
         <div className={cn(
-          "mt-6 overflow-hidden h-1 bg-white/20 rounded-full w-48",
+          "mt-6 overflow-hidden h-2 bg-white/20 rounded-full w-48",
           animationState === 'animate' && 'animate-pulse-subtle'
         )}>
           <div 
-            className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
+            className="h-full bg-gradient-to-r from-blue-400 via-indigo-500 to-blue-600 rounded-full"
             style={{
               width: animationState === 'animate' ? '100%' : '0%',
               transition: 'width 2.5s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -68,7 +68,7 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
           animationState === 'animate' && 'opacity-100 transition-opacity delay-500 duration-1000',
           animationState === 'exit' && 'opacity-0 transition-opacity duration-300'
         )}>
-          PRESENCE
+          PRESENCE • ATTENDANCE SYSTEM
         </p>
       </div>
     </div>
