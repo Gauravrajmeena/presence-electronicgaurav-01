@@ -6,7 +6,12 @@ import { DayPicker } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>;
+// Update the type definition to allow for functions in classNames
+export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  classNames?: React.ComponentProps<typeof DayPicker>["classNames"] & {
+    day?: string | ((date: Date) => string);
+  };
+};
 
 function Calendar({
   className,
@@ -37,12 +42,20 @@ function Calendar({
         row: "flex w-full mt-2",
         cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: (date) => {
-          return cn(
+          const baseClasses = cn(
             buttonVariants({ variant: "ghost" }),
-            "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
-            // Apply custom class from parent if provided
-            classNames?.day && typeof classNames.day === 'function' ? classNames.day(date) : ''
+            "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
           );
+          
+          // Apply custom class from parent if provided
+          if (classNames?.day) {
+            if (typeof classNames.day === 'function') {
+              return cn(baseClasses, classNames.day(date));
+            }
+            return cn(baseClasses, classNames.day);
+          }
+          
+          return baseClasses;
         },
         day_range_end: "day-range-end",
         day_selected:
