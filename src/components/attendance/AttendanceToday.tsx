@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Json } from '@/integrations/supabase/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const AttendanceToday = () => {
@@ -19,9 +18,9 @@ const AttendanceToday = () => {
           confidence_score,
           user_id,
           device_info,
-          profiles (
-            username,
-            avatar_url
+          user:user_id (
+            username:profiles!inner(username),
+            avatar_url:profiles!inner(avatar_url)
           )
         `)
         .order('timestamp', { ascending: false })
@@ -37,38 +36,25 @@ const AttendanceToday = () => {
           let username = 'Unknown';
           let photoUrl = '';
           
-          // Try to get name and photo from device_info first
           if (record.device_info) {
             try {
               const deviceInfo = typeof record.device_info === 'string' 
                 ? JSON.parse(record.device_info) 
                 : record.device_info;
               
-              if (deviceInfo.metadata?.name) {
-                username = deviceInfo.metadata.name;
-              } else if (deviceInfo.name) {
-                username = deviceInfo.name;
-              }
-              
-              // Get photo URL from Supabase storage if available
-              if (deviceInfo.metadata?.supabase_image_url) {
-                photoUrl = deviceInfo.metadata.supabase_image_url;
-              } else if (deviceInfo.supabase_image_url) {
-                photoUrl = deviceInfo.supabase_image_url;
-              }
+              username = deviceInfo.metadata?.name || deviceInfo.name || username;
+              photoUrl = deviceInfo.metadata?.supabase_image_url || deviceInfo.supabase_image_url || '';
             } catch (e) {
               console.error('Error parsing device_info:', e);
             }
           }
           
-          // If no name found in device_info, use profile data
-          if (username === 'Unknown' && record.profiles?.username) {
-            username = record.profiles.username;
+          if (record.user?.username) {
+            username = record.user.username;
           }
           
-          // If no photo found in device_info, use profile avatar
-          if (!photoUrl && record.profiles?.avatar_url) {
-            photoUrl = record.profiles.avatar_url;
+          if (record.user?.avatar_url) {
+            photoUrl = record.user.avatar_url;
           }
           
           return {
