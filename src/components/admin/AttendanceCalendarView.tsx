@@ -24,7 +24,7 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   
   // Function to determine day class based on attendance status
-  const getDayClass = (date: Date): string => {
+  const getDayClass = React.useCallback((date: Date): string => {
     const formattedDate = date.toDateString();
     
     if (attendanceDays.some(d => d.toDateString() === formattedDate)) {
@@ -40,7 +40,7 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
     }
     
     return "";
-  };
+  }, [attendanceDays, lateAttendanceDays, absentDays]);
   
   return (
     <div className="flex flex-col items-center">

@@ -19,8 +19,12 @@ function Calendar({
   ...props
 }: CalendarProps) {
   // Create a helper function to handle both string and function day className
-  const getDayClassName = (date: Date): string => {
-    if (typeof classNames?.day === 'function') {
+  const getDayClassName = React.useCallback((date: Date): string => {
+    if (!classNames?.day) {
+      return buttonVariants({ variant: "ghost" }) + " h-9 w-9 p-0 font-normal aria-selected:opacity-100";
+    }
+    
+    if (typeof classNames.day === 'function') {
       return cn(
         buttonVariants({ variant: "ghost" }),
         "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
@@ -31,9 +35,9 @@ function Calendar({
     return cn(
       buttonVariants({ variant: "ghost" }),
       "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
-      classNames?.day
+      classNames.day
     );
-  };
+  }, [classNames?.day]);
 
   return (
     <DayPicker
