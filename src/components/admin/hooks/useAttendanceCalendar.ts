@@ -10,9 +10,12 @@ import {
   isDateInArray,
   FaceInfo
 } from '../utils/attendanceUtils';
+import { useAttendance } from '@/contexts/AttendanceContext';
 
 export const useAttendanceCalendar = (selectedFaceId: string | null) => {
   const { toast } = useToast();
+  const { recentAttendance } = useAttendance();
+  
   const [attendanceDays, setAttendanceDays] = useState<Date[]>([]);
   const [lateAttendanceDays, setLateAttendanceDays] = useState<Date[]>([]);
   const [absentDays, setAbsentDays] = useState<Date[]>([]);
@@ -32,7 +35,88 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
   const currentDate = new Date();
   const [workingDays, setWorkingDays] = useState<Date[]>([]);
 
-  // Subscribe to real-time updates
+  // Process recent attendance data for the selected face
+  useEffect(() => {
+    if (selectedFaceId && recentAttendance.length > 0) {
+      // Find records for the selected face
+      const faceRecords = recentAttendance.filter(record => 
+        record.user_id === selectedFaceId || record.id === selectedFaceId
+      );
+      
+      if (faceRecords.length > 0) {
+        // Extract attendance data
+        const presentDates: Date[] = [];
+        const lateDates: Date[] = [];
+        
+        faceRecords.forEach(record => {
+          const recordDate = new Date(record.timestamp);
+          // Reset time part for accurate date comparison
+          recordDate.setHours(0, 0, 0, 0);
+          
+          // Check if this date is already in our arrays
+          const dateExists = 
+            presentDates.some(d => d.getTime() === recordDate.getTime()) || 
+            lateDates.some(d => d.getTime() === recordDate.getTime());
+            
+          if (!dateExists) {
+            if (record.status === 'Present' || record.status.toLowerCase().includes('present')) {
+              presentDates.push(recordDate);
+            } else if (record.status === 'Late' || record.status.toLowerCase().includes('late')) {
+              lateDates.push(recordDate);
+            }
+          }
+        });
+        
+        // Merge with existing dates to avoid clearing database-loaded records
+        if (presentDates.length > 0) {
+          setAttendanceDays(prev => {
+            const combined = [...prev];
+            presentDates.forEach(date => {
+              if (!isDateInArray(date, combined)) {
+                combined.push(date);
+              }
+            });
+            return combined;
+          });
+        }
+        
+        if (lateDates.length > 0) {
+          setLateAttendanceDays(prev => {
+            const combined = [...prev];
+            lateDates.forEach(date => {
+              if (!isDateInArray(date, combined)) {
+                combined.push(date);
+              }
+            });
+            return combined;
+          });
+        }
+        
+        // If the selected date matches any recent records, update daily attendance
+        if (selectedDate) {
+          const selectedDateStart = new Date(selectedDate);
+          selectedDateStart.setHours(0, 0, 0, 0);
+          const selectedDateEnd = new Date(selectedDate);
+          selectedDateEnd.setHours(23, 59, 59, 999);
+          
+          const recordsForSelectedDate = faceRecords.filter(record => {
+            const recordDate = new Date(record.timestamp);
+            return recordDate >= selectedDateStart && recordDate <= selectedDateEnd;
+          });
+          
+          if (recordsForSelectedDate.length > 0) {
+            setDailyAttendance(recordsForSelectedDate.map(record => ({
+              id: record.id,
+              timestamp: record.timestamp,
+              status: record.status.toLowerCase()
+            })));
+          }
+        }
+      }
+    }
+  }, [selectedFaceId, recentAttendance, selectedDate]);
+
+  // Subscribe to real-time updates and load initial data
   useEffect(() => {
     let attendanceChannel: any = null;
 

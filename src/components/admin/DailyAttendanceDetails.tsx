@@ -3,6 +3,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { UserCheck, Clock, X } from 'lucide-react';
+import { useAttendance } from '@/contexts/AttendanceContext';
 
 interface DailyAttendanceDetailsProps {
   selectedDate: Date | undefined;
@@ -25,6 +26,8 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
   lateAttendanceDays = [],
   absentDays = []
 }) => {
+  const { recentAttendance } = useAttendance();
+
   // Format time to 12-hour format with AM/PM
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -57,10 +60,27 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
     return date > today;
   };
 
+  // Check for real-time attendance from recent records
+  const getRealtimeAttendance = () => {
+    if (!selectedDate || recentAttendance.length === 0) return null;
+    
+    const selectedDateStart = new Date(selectedDate);
+    selectedDateStart.setHours(0, 0, 0, 0);
+    const selectedDateEnd = new Date(selectedDate);
+    selectedDateEnd.setHours(23, 59, 59, 999);
+    
+    return recentAttendance.filter(record => {
+      const recordDate = new Date(record.timestamp);
+      return recordDate >= selectedDateStart && recordDate <= selectedDateEnd;
+    });
+  };
+
   if (!selectedDate) return null;
 
   // Check if there are attendance records for this date
   const hasAttendanceRecords = dailyAttendance && dailyAttendance.length > 0;
+  const realtimeRecords = getRealtimeAttendance();
+  const hasRealtimeRecords = realtimeRecords && realtimeRecords.length > 0;
   
   // Check if the date is in any of the attendance arrays (present, late, absent)
   const isPresentDate = isDateInArray(selectedDate, attendanceDays);
@@ -76,6 +96,31 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
       
       {isFutureDate(selectedDate) ? (
         <p className="text-sm text-muted-foreground">Future date selected. No attendance data available yet.</p>
+      ) : hasRealtimeRecords ? (
+        <div className="space-y-2">
+          {realtimeRecords.map((record) => (
+            <div key={record.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+              <div className="flex flex-col">
+                <div className="flex items-center">
+                  {record.status === 'Late' ? (
+                    <Clock className="h-4 w-4 text-amber-500 mr-2" />
+                  ) : (
+                    <UserCheck className="h-4 w-4 text-green-500 mr-2" />
+                  )}
+                  <span>
+                    {formatTime(record.timestamp)}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground ml-6">
+                  {formatDateTime(record.timestamp)}
+                </span>
+              </div>
+              <Badge variant={record.status === 'Late' ? "outline" : "default"}>
+                {record.status}
+              </Badge>
+            </div>
+          ))}
+        </div>
       ) : hasAttendanceRecords ? (
         <div className="space-y-2">
           {dailyAttendance.map((record) => (
