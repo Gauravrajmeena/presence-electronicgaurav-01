@@ -10,6 +10,7 @@ type AttendanceRecord = {
   status: string;
   timestamp: string;
   user_id?: string;
+  image_url?: string; // Added this field to match the database schema
 };
 
 interface AttendanceContextType {
@@ -41,7 +42,8 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           timestamp,
           confidence_score,
           user_id,
-          device_info
+          device_info,
+          image_url
         `)
         .order('timestamp', { ascending: false })
         .limit(20);
@@ -57,7 +59,7 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           attendanceData.map(async (record) => {
             // Extract name from device_info or other sources
             let username = 'Unknown';
-            let photoUrl = '';
+            let photoUrl = record.image_url || '';
             
             // Try to extract name from device_info
             if (record.device_info) {
@@ -162,7 +164,8 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               time: recordDate.toTimeString().substring(0, 5), // HH:MM format
               status: displayStatus,
               timestamp: record.timestamp,
-              user_id: record.user_id
+              user_id: record.user_id,
+              image_url: photoUrl // Pass the image URL to the component
             };
           })
         );

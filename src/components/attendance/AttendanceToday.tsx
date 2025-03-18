@@ -20,8 +20,8 @@ const AttendanceToday = () => {
             >
               <div className="flex items-center gap-3">
                 <Avatar className="w-10 h-10 border">
-                  {record.photoUrl ? (
-                    <AvatarImage src={record.photoUrl} alt={record.name} />
+                  {record.image_url ? (
+                    <AvatarImage src={record.image_url} alt={record.name} />
                   ) : (
                     <AvatarFallback className="bg-primary/10">
                       <span className="text-primary font-medium">{record.name.charAt(0)}</span>
