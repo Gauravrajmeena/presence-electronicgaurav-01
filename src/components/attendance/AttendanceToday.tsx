@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,10 +19,7 @@ const AttendanceToday = () => {
           confidence_score,
           user_id,
           device_info,
-          user:user_id (
-            username:profiles!inner(username),
-            avatar_url:profiles!inner(avatar_url)
-          )
+          profiles:user_id(username, avatar_url)
         `)
         .order('timestamp', { ascending: false })
         .limit(10);
@@ -49,12 +47,13 @@ const AttendanceToday = () => {
             }
           }
           
-          if (record.user?.username) {
-            username = record.user.username;
+          // Use profiles data if available
+          if (record.profiles && record.profiles.username) {
+            username = record.profiles.username;
           }
           
-          if (record.user?.avatar_url) {
-            photoUrl = record.user.avatar_url;
+          if (record.profiles && record.profiles.avatar_url) {
+            photoUrl = record.profiles.avatar_url;
           }
           
           return {
