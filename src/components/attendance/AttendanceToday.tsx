@@ -42,23 +42,28 @@ const AttendanceToday = () => {
                 : record.device_info;
               
               username = deviceInfo.metadata?.name || deviceInfo.name || username;
-              photoUrl = deviceInfo.metadata?.supabase_image_url || deviceInfo.supabase_image_url || '';
+              photoUrl = deviceInfo.metadata?.firebase_image_url || deviceInfo.firebase_image_url || '';
             } catch (e) {
               console.error('Error parsing device_info:', e);
             }
           }
           
-          // If we have a user_id, fetch the profile data
+          // If we have a user_id, fetch the profile data separately
           if (record.user_id) {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('username, avatar_url')
-              .eq('id', record.user_id)
-              .single();
-              
-            if (profileData) {
-              username = profileData.username || username;
-              photoUrl = profileData.avatar_url || photoUrl;
+            try {
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', record.user_id)
+                .single();
+                
+              if (profileData && !profileError) {
+                username = profileData.username || username;
+                photoUrl = profileData.avatar_url || photoUrl;
+              }
+            } catch (e) {
+              console.error('Error fetching profile data:', e);
+              // Continue with default values
             }
           }
           
@@ -69,12 +74,24 @@ const AttendanceToday = () => {
           
           // Map to proper display status
           let displayStatus = 'Unknown';
-          if (normalizedStatus.includes('present')) {
+          if (normalizedStatus.includes('present') || normalizedStatus.includes('unauthorized')) {
             displayStatus = 'Present';
+            // Ensure the record is actually stored as 'present' for calendar consistency
+            if (normalizedStatus === 'unauthorized') {
+              try {
+                await supabase
+                  .from('attendance_records')
+                  .update({ status: 'present' })
+                  .eq('id', record.id);
+                console.log('Updated unauthorized record to present:', record.id);
+              } catch (e) {
+                console.error('Failed to update status:', e);
+              }
+            }
           } else if (normalizedStatus.includes('late')) {
             displayStatus = 'Late';
-          } else if (normalizedStatus.includes('unauthor')) {
-            displayStatus = 'Unauthorized';
+          } else if (normalizedStatus.includes('absent')) {
+            displayStatus = 'Absent';
           }
           
           return {

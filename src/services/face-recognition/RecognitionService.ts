@@ -147,6 +147,13 @@ export async function recordAttendance(
   try {
     console.log(`Recording attendance for user ${userId} with status ${status}`);
     
+    // Normalize status to 'present' for universal compatibility
+    let normalizedStatus = status;
+    if (status === 'unauthorized') {
+      normalizedStatus = 'present';
+      console.log('Normalizing status from unauthorized to present for consistency');
+    }
+    
     const timestamp = new Date().toISOString();
     
     // First, check if we can get user info from profiles table
@@ -185,7 +192,7 @@ export async function recordAttendance(
       .insert({
         user_id: userId,
         timestamp,
-        status,
+        status: normalizedStatus,
         device_info: fullDeviceInfo,
         confidence_score: confidence
       })

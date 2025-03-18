@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { SetDatesFunction, AttendanceRecord } from './types';
 
-// Fetch attendance records from Supabase
+// Fetch attendance records from Supabase with improved status normalization
 export const fetchAttendanceRecords = async (
   faceId: string,
   setAttendanceDays: SetDatesFunction,
@@ -35,20 +35,28 @@ export const fetchAttendanceRecords = async (
     
     console.log('Total records found:', allRecords.length);
     
-    // Filter for 'present' status records
+    // Normalize all status values to lowercase for consistent processing
+    allRecords = allRecords.map(record => ({
+      ...record,
+      status: typeof record.status === 'string' ? record.status.toLowerCase() : record.status
+    }));
+    
+    // Filter records with normalized status check (includes present, Present)
     const presentRecords = allRecords.filter(record => 
-      record.status === 'present' || record.status === 'Present'
+      record.status === 'present' || 
+      record.status === 'unauthorized' // Include unauthorized as present for backward compatibility
     );
     
-    // Filter for 'late' status records
+    // Filter for 'late' status records (includes late, Late)
     const lateRecords = allRecords.filter(record => 
-      record.status === 'late' || record.status === 'Late'
+      record.status === 'late'
     );
     
     console.log('Present records:', presentRecords.length);
     console.log('Late records:', lateRecords.length);
     
     if (presentRecords.length > 0) {
+      // Convert timestamps to Date objects for the calendar
       const days = presentRecords
         .map(record => record.timestamp ? new Date(record.timestamp) : null)
         .filter(date => date !== null) as Date[];
@@ -75,7 +83,7 @@ export const fetchAttendanceRecords = async (
   }
 };
 
-// Fetch daily attendance for a specific date
+// Fetch daily attendance for a specific date with improved status normalization
 export const fetchDailyAttendance = async (
   faceId: string, 
   date: Date,
@@ -90,13 +98,19 @@ export const fetchDailyAttendance = async (
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     
+    // Use a more inclusive timestamp range query
+    const timestampStart = startOfDay.toISOString();
+    const timestampEnd = endOfDay.toISOString();
+    
+    console.log(`Querying from ${timestampStart} to ${timestampEnd}`);
+    
     // First try to fetch records where id equals faceId
     let { data: recordsById, error: errorById } = await supabase
       .from('attendance_records')
       .select('id, timestamp, status')
       .eq('id', faceId)
-      .gte('timestamp', startOfDay.toISOString())
-      .lte('timestamp', endOfDay.toISOString())
+      .gte('timestamp', timestampStart)
+      .lte('timestamp', timestampEnd)
       .order('timestamp', { ascending: true });
     
     // Then try to fetch records where user_id equals faceId
@@ -104,8 +118,8 @@ export const fetchDailyAttendance = async (
       .from('attendance_records')
       .select('id, timestamp, status')
       .eq('user_id', faceId)
-      .gte('timestamp', startOfDay.toISOString())
-      .lte('timestamp', endOfDay.toISOString())
+      .gte('timestamp', timestampStart)
+      .lte('timestamp', timestampEnd)
       .order('timestamp', { ascending: true });
     
     // Combine the results
@@ -113,10 +127,12 @@ export const fetchDailyAttendance = async (
     
     if (allRecords.length > 0) {
       console.log('Daily attendance records found:', allRecords.length);
-      // Normalize status field
+      // Normalize status field for consistent processing
       const normalizedRecords = allRecords.map(record => ({
         ...record,
-        status: record.status.toLowerCase()
+        status: typeof record.status === 'string' ? 
+          record.status.toLowerCase() === 'unauthorized' ? 'present' : record.status.toLowerCase() 
+          : 'unknown'
       }));
       setDailyAttendance(normalizedRecords);
     } else {

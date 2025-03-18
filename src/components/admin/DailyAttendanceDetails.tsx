@@ -59,6 +59,14 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
 
   if (!selectedDate) return null;
 
+  // Check if there are attendance records for this date
+  const hasAttendanceRecords = dailyAttendance && dailyAttendance.length > 0;
+  
+  // Check if the date is in any of the attendance arrays (present, late, absent)
+  const isPresentDate = isDateInArray(selectedDate, attendanceDays);
+  const isLateDate = isDateInArray(selectedDate, lateAttendanceDays);
+  const isAbsentDate = isDateInArray(selectedDate, absentDays);
+
   return (
     <div className="border-t pt-4 mt-4">
       <h3 className="font-medium mb-2">
@@ -68,7 +76,7 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
       
       {isFutureDate(selectedDate) ? (
         <p className="text-sm text-muted-foreground">Future date selected. No attendance data available yet.</p>
-      ) : dailyAttendance && dailyAttendance.length > 0 ? (
+      ) : hasAttendanceRecords ? (
         <div className="space-y-2">
           {dailyAttendance.map((record) => (
             <div key={record.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
@@ -93,10 +101,12 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
             </div>
           ))}
         </div>
-      ) : isDateInArray && attendanceDays && lateAttendanceDays && 
-          (isDateInArray(selectedDate, attendanceDays) || isDateInArray(selectedDate, lateAttendanceDays)) ? (
-        <p className="text-sm text-muted-foreground">Loading attendance details...</p>
-      ) : isDateInArray && absentDays && isDateInArray(selectedDate, absentDays) ? (
+      ) : isPresentDate || isLateDate ? (
+        <div className="flex items-center justify-center p-4 bg-green-50 rounded-md">
+          <UserCheck className="h-5 w-5 text-green-500 mr-2" />
+          <span className="text-green-500 font-medium">Present</span>
+        </div>
+      ) : isAbsentDate ? (
         <div className="flex items-center justify-center p-4 bg-red-50 rounded-md">
           <X className="h-5 w-5 text-red-500 mr-2" />
           <span className="text-red-500 font-medium">Absent</span>
