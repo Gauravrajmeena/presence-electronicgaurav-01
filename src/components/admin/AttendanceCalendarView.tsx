@@ -56,6 +56,21 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
           today: [today]
         }}
         defaultMonth={currentMonth}
+        // Add custom classes to color the day numbers
+        classNames={{
+          day: (date) => {
+            const formattedDate = date.toDateString();
+            const isPresentDay = attendanceDays.some(d => d.toDateString() === formattedDate);
+            const isLateDay = lateAttendanceDays.some(d => d.toDateString() === formattedDate);
+            const isAbsentDay = absentDays.some(d => d.toDateString() === formattedDate);
+            
+            if (isPresentDay) return "text-green-600 font-medium";
+            if (isLateDay) return "text-amber-600 font-medium";
+            if (isAbsentDay) return "text-red-600 font-medium";
+            
+            return "";
+          }
+        }}
       />
     </div>
   );
