@@ -43,7 +43,6 @@ const Navbar = () => {
             { text: 'Register', path: '/register' },
             { text: 'Attendance', path: '/attendance' },
             { text: 'Admin', path: '/admin' },
-            { text: 'Contact', path: '/contact' },
           ].map((item) => (
             <Link
               key={item.path}

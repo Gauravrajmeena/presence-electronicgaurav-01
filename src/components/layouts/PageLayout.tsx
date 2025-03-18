@@ -3,6 +3,7 @@ import React, { ReactNode } from 'react';
 import Navbar from '../Navbar';
 import Footer from '../Footer';
 import MobileSidebar from '../MobileSidebar';
+import ContactBanner from '../ContactBanner';
 import { cn } from '@/lib/utils';
 
 interface PageLayoutProps {
@@ -28,6 +29,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({
       )}>
         {children}
       </main>
+      <ContactBanner />
       {!noFooter && <Footer />}
       <MobileSidebar />
     </div>
