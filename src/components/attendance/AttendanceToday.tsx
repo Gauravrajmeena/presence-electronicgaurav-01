@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Json } from '@/integrations/supabase/types';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const AttendanceToday = () => {
   const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
@@ -25,6 +26,7 @@ const AttendanceToday = () => {
         const enrichedData = await Promise.all(
           attendanceData.map(async (record) => {
             let username = 'Unknown';
+            let photoUrl = '';
             
             if (record.device_info) {
               try {
@@ -32,10 +34,18 @@ const AttendanceToday = () => {
                   ? JSON.parse(record.device_info) 
                   : record.device_info;
                 
+                // Try to get name from metadata
                 if (deviceInfo.metadata && deviceInfo.metadata.name) {
                   username = deviceInfo.metadata.name;
                 } else if (deviceInfo.name) {
                   username = deviceInfo.name;
+                }
+                
+                // Try to get photo URL from metadata
+                if (deviceInfo.metadata && deviceInfo.metadata.firebase_image_url) {
+                  photoUrl = deviceInfo.metadata.firebase_image_url;
+                } else if (deviceInfo.firebase_image_url) {
+                  photoUrl = deviceInfo.firebase_image_url;
                 }
               } catch (e) {
                 console.error('Error parsing device_info:', e);
@@ -60,7 +70,8 @@ const AttendanceToday = () => {
               time: format(new Date(record.timestamp), 'h:mm a'),
               status: record.status === 'present' ? 'Present' : 'Unauthorized',
               confidence: record.confidence_score,
-              id: record.id
+              id: record.id,
+              photoUrl: photoUrl
             };
           })
         );
@@ -103,9 +114,15 @@ const AttendanceToday = () => {
               className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary font-medium text-xs">{record.name.charAt(0)}</span>
-                </div>
+                <Avatar className="w-10 h-10 border">
+                  {record.photoUrl ? (
+                    <AvatarImage src={record.photoUrl} alt={record.name} />
+                  ) : (
+                    <AvatarFallback className="bg-primary/10">
+                      <span className="text-primary font-medium">{record.name.charAt(0)}</span>
+                    </AvatarFallback>
+                  )}
+                </Avatar>
                 <div>
                   <p className="font-medium text-sm">{record.name}</p>
                   <p className="text-xs text-muted-foreground">
