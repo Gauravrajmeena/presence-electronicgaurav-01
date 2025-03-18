@@ -23,25 +23,6 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
   // Get current month for default display
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   
-  // Function to determine day class based on attendance status
-  const getDayClass = React.useCallback((date: Date): string => {
-    const formattedDate = date.toDateString();
-    
-    if (attendanceDays.some(d => d.toDateString() === formattedDate)) {
-      return "text-green-600 font-medium";
-    }
-    
-    if (lateAttendanceDays.some(d => d.toDateString() === formattedDate)) {
-      return "text-amber-600 font-medium";
-    }
-    
-    if (absentDays.some(d => d.toDateString() === formattedDate)) {
-      return "text-red-600 font-medium";
-    }
-    
-    return "";
-  }, [attendanceDays, lateAttendanceDays, absentDays]);
-  
   return (
     <div className="flex flex-col items-center">
       <CalendarLegend />
@@ -75,9 +56,6 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
           today: [today]
         }}
         defaultMonth={currentMonth}
-        classNames={{
-          day: getDayClass
-        }}
       />
     </div>
   );
