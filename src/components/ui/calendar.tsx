@@ -12,19 +12,8 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
-  getDayClassNames,
   ...props
-}: CalendarProps & {
-  getDayClassNames?: (date: Date) => string;
-}) {
-  // Create a callback for day class names
-  const getDayClassName = React.useCallback((date: Date) => {
-    if (typeof getDayClassNames === "function") {
-      return getDayClassNames(date);
-    }
-    return "";
-  }, [getDayClassNames]);
-
+}: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -67,7 +56,6 @@ function Calendar({
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
-      getDayClassNames={getDayClassName}
       {...props}
     />
   );

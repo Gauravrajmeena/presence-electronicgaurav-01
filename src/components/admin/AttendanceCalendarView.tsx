@@ -2,6 +2,7 @@
 import React, { useCallback } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import CalendarLegend from './CalendarLegend';
+import { cn } from '@/lib/utils';
 
 interface AttendanceCalendarViewProps {
   selectedDate: Date | undefined;
@@ -22,11 +23,6 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
   const today = new Date();
   // Get current month for default display
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  
-  // Create a callback for day class names
-  const getDayClass = useCallback((date: Date) => {
-    return "relative transition-all duration-200 hover:scale-110 z-10";
-  }, []);
   
   return (
     <div className="flex flex-col items-center animate-fade-in">
@@ -74,12 +70,11 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
           today: [today]
         }}
         defaultMonth={currentMonth}
-        styles={{
-          day_wrapper: { 
-            transition: "transform 0.2s ease",
-          }
+        classNames={{
+          day: cn(
+            "relative transition-all duration-200 hover:scale-110 z-10"
+          )
         }}
-        getDayClassNames={getDayClass}
       />
     </div>
   );
