@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +12,18 @@ const AttendanceToday = () => {
     const fetchRecentAttendance = async () => {
       const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
-        .select('id, status, timestamp, confidence_score, user_id, device_info')
+        .select(`
+          id,
+          status,
+          timestamp,
+          confidence_score,
+          user_id,
+          device_info,
+          profiles (
+            username,
+            avatar_url
+          )
+        `)
         .order('timestamp', { ascending: false })
         .limit(10);
         
@@ -23,58 +33,54 @@ const AttendanceToday = () => {
       }
       
       if (attendanceData && attendanceData.length > 0) {
-        const enrichedData = await Promise.all(
-          attendanceData.map(async (record) => {
-            let username = 'Unknown';
-            let photoUrl = '';
-            
-            if (record.device_info) {
-              try {
-                const deviceInfo = typeof record.device_info === 'string' 
-                  ? JSON.parse(record.device_info) 
-                  : record.device_info;
-                
-                // Try to get name from metadata
-                if (deviceInfo.metadata && deviceInfo.metadata.name) {
-                  username = deviceInfo.metadata.name;
-                } else if (deviceInfo.name) {
-                  username = deviceInfo.name;
-                }
-                
-                // Try to get photo URL from metadata
-                if (deviceInfo.metadata && deviceInfo.metadata.firebase_image_url) {
-                  photoUrl = deviceInfo.metadata.firebase_image_url;
-                } else if (deviceInfo.firebase_image_url) {
-                  photoUrl = deviceInfo.firebase_image_url;
-                }
-              } catch (e) {
-                console.error('Error parsing device_info:', e);
+        const enrichedData = attendanceData.map((record) => {
+          let username = 'Unknown';
+          let photoUrl = '';
+          
+          // Try to get name and photo from device_info first
+          if (record.device_info) {
+            try {
+              const deviceInfo = typeof record.device_info === 'string' 
+                ? JSON.parse(record.device_info) 
+                : record.device_info;
+              
+              if (deviceInfo.metadata?.name) {
+                username = deviceInfo.metadata.name;
+              } else if (deviceInfo.name) {
+                username = deviceInfo.name;
               }
-            }
-            
-            if (username === 'Unknown' && record.user_id) {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('username')
-                .eq('id', record.user_id)
-                .maybeSingle();
-                
-              if (profileData && profileData.username) {
-                username = profileData.username;
+              
+              // Get photo URL from Supabase storage if available
+              if (deviceInfo.metadata?.supabase_image_url) {
+                photoUrl = deviceInfo.metadata.supabase_image_url;
+              } else if (deviceInfo.supabase_image_url) {
+                photoUrl = deviceInfo.supabase_image_url;
               }
+            } catch (e) {
+              console.error('Error parsing device_info:', e);
             }
-            
-            return {
-              name: username,
-              date: format(new Date(record.timestamp), 'MMM d, yyyy'),
-              time: format(new Date(record.timestamp), 'h:mm a'),
-              status: record.status === 'present' ? 'Present' : 'Unauthorized',
-              confidence: record.confidence_score,
-              id: record.id,
-              photoUrl: photoUrl
-            };
-          })
-        );
+          }
+          
+          // If no name found in device_info, use profile data
+          if (username === 'Unknown' && record.profiles?.username) {
+            username = record.profiles.username;
+          }
+          
+          // If no photo found in device_info, use profile avatar
+          if (!photoUrl && record.profiles?.avatar_url) {
+            photoUrl = record.profiles.avatar_url;
+          }
+          
+          return {
+            name: username,
+            date: format(new Date(record.timestamp), 'MMM d, yyyy'),
+            time: format(new Date(record.timestamp), 'h:mm a'),
+            status: record.status === 'present' ? 'Present' : 'Unauthorized',
+            confidence: record.confidence_score,
+            id: record.id,
+            photoUrl: photoUrl
+          };
+        });
         
         setRecentAttendance(enrichedData);
       } else {
