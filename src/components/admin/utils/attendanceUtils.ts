@@ -138,49 +138,63 @@ export const fetchAttendanceRecords = async (
   try {
     console.log('Fetching attendance records for face ID:', faceId);
     
-    const query = supabase.from('attendance_records');
-    
-    const { data: recordsPresent, error: errorPresent } = await query
-      .select('*')
-      .eq('status', 'present')
-      .or(`id.eq.${faceId},user_id.eq.${faceId}`);
-    
-    if (errorPresent) {
-      console.error('Error fetching present records:', errorPresent);
-      throw errorPresent;
-    } else {
-      console.log('Present records found:', recordsPresent?.length || 0);
-    }
-    
-    const { data: recordsLate, error: errorLate } = await supabase
+    // First try to fetch records where id equals faceId
+    let { data: recordsById, error: errorById } = await supabase
       .from('attendance_records')
       .select('*')
-      .eq('status', 'late')
-      .or(`id.eq.${faceId},user_id.eq.${faceId}`);
+      .eq('id', faceId);
     
-    if (errorLate) {
-      console.error('Error fetching late records:', errorLate);
-      throw errorLate;
-    } else {
-      console.log('Late records found:', recordsLate?.length || 0);
+    // Then try to fetch records where user_id equals faceId
+    let { data: recordsByUserId, error: errorByUserId } = await supabase
+      .from('attendance_records')
+      .select('*')
+      .eq('user_id', faceId);
+    
+    // Combine the results
+    let allRecords = [...(recordsById || []), ...(recordsByUserId || [])];
+    
+    if (allRecords.length === 0) {
+      console.log('No records found for face ID:', faceId);
+      setAttendanceDays([]);
+      setLateAttendanceDays([]);
+      return;
     }
     
-    if (recordsPresent) {
-      const days = recordsPresent
+    console.log('Total records found:', allRecords.length);
+    
+    // Filter for 'present' status records
+    const presentRecords = allRecords.filter(record => 
+      record.status === 'present' || record.status === 'Present'
+    );
+    
+    // Filter for 'late' status records
+    const lateRecords = allRecords.filter(record => 
+      record.status === 'late' || record.status === 'Late'
+    );
+    
+    console.log('Present records:', presentRecords.length);
+    console.log('Late records:', lateRecords.length);
+    
+    if (presentRecords.length > 0) {
+      const days = presentRecords
         .map(record => record.timestamp ? new Date(record.timestamp) : null)
         .filter(date => date !== null) as Date[];
       
       console.log('Setting present days:', days.length);
       setAttendanceDays(days);
+    } else {
+      setAttendanceDays([]);
     }
     
-    if (recordsLate) {
-      const lateDays = recordsLate
+    if (lateRecords.length > 0) {
+      const lateDays = lateRecords
         .map(record => record.timestamp ? new Date(record.timestamp) : null)
         .filter(date => date !== null) as Date[];
       
       console.log('Setting late days:', lateDays.length);
       setLateAttendanceDays(lateDays);
+    } else {
+      setLateAttendanceDays([]);
     }
   } catch (error) {
     console.error('Error in fetchAttendanceRecords:', error);
@@ -203,22 +217,37 @@ export const fetchDailyAttendance = async (
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     
-    const { data: records, error } = await supabase
+    // First try to fetch records where id equals faceId
+    let { data: recordsById, error: errorById } = await supabase
       .from('attendance_records')
       .select('id, timestamp, status')
-      .or(`id.eq.${faceId},user_id.eq.${faceId}`)
+      .eq('id', faceId)
       .gte('timestamp', startOfDay.toISOString())
       .lte('timestamp', endOfDay.toISOString())
       .order('timestamp', { ascending: true });
-      
-    if (error) {
-      console.error('Error fetching daily attendance:', error);
-      throw error;
-    }
     
-    if (records) {
-      console.log('Daily attendance records found:', records.length);
-      setDailyAttendance(records);
+    // Then try to fetch records where user_id equals faceId
+    let { data: recordsByUserId, error: errorByUserId } = await supabase
+      .from('attendance_records')
+      .select('id, timestamp, status')
+      .eq('user_id', faceId)
+      .gte('timestamp', startOfDay.toISOString())
+      .lte('timestamp', endOfDay.toISOString())
+      .order('timestamp', { ascending: true });
+    
+    // Combine the results
+    let allRecords = [...(recordsById || []), ...(recordsByUserId || [])];
+    
+    if (allRecords.length > 0) {
+      console.log('Daily attendance records found:', allRecords.length);
+      // Normalize status field
+      const normalizedRecords = allRecords.map(record => ({
+        ...record,
+        status: record.status.toLowerCase()
+      }));
+      setDailyAttendance(normalizedRecords);
+    } else {
+      setDailyAttendance([]);
     }
   } catch (error) {
     console.error('Error in fetchDailyAttendance:', error);

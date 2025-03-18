@@ -62,13 +62,30 @@ const AttendanceToday = () => {
             }
           }
           
+          // Normalize status to ensure consistency
+          let normalizedStatus = typeof record.status === 'string' 
+            ? record.status.toLowerCase() 
+            : 'unknown';
+          
+          // Map to proper display status
+          let displayStatus = 'Unknown';
+          if (normalizedStatus.includes('present')) {
+            displayStatus = 'Present';
+          } else if (normalizedStatus.includes('late')) {
+            displayStatus = 'Late';
+          } else if (normalizedStatus.includes('unauthor')) {
+            displayStatus = 'Unauthorized';
+          }
+          
           return {
             name: username,
             date: format(new Date(record.timestamp), 'MMM d, yyyy'),
             time: format(new Date(record.timestamp), 'h:mm a'),
-            status: record.status === 'present' ? 'Present' : 'Unauthorized',
+            status: displayStatus,
+            rawStatus: normalizedStatus, // Keep raw status for debugging
             confidence: record.confidence_score,
             id: record.id,
+            user_id: record.user_id,
             photoUrl: photoUrl
           };
         }));
@@ -130,7 +147,9 @@ const AttendanceToday = () => {
               <span className={`text-xs px-2 py-1 rounded-full ${
                 record.status === 'Present' 
                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500' 
-                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500'
+                  : record.status === 'Late'
+                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500'
+                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500'
               }`}>
                 {record.status}
               </span>
