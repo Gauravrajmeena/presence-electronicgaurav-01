@@ -35,35 +35,103 @@ const AttendanceToday = () => {
           let username = 'Unknown';
           let photoUrl = '';
           
+          // Try to extract name from device_info
           if (record.device_info) {
             try {
               const deviceInfo = typeof record.device_info === 'string' 
                 ? JSON.parse(record.device_info) 
                 : record.device_info;
               
-              username = deviceInfo.metadata?.name || deviceInfo.name || username;
-              photoUrl = deviceInfo.metadata?.firebase_image_url || deviceInfo.firebase_image_url || '';
+              // First check if metadata.name exists
+              if (deviceInfo.metadata && typeof deviceInfo.metadata === 'object') {
+                username = deviceInfo.metadata.name || username;
+                photoUrl = deviceInfo.metadata.firebase_image_url || photoUrl;
+              } 
+              // If no metadata.name, check if name exists directly in deviceInfo
+              else if (deviceInfo.name) {
+                username = deviceInfo.name;
+              }
+              
+              // Look for photo URL
+              if (!photoUrl && deviceInfo.firebase_image_url) {
+                photoUrl = deviceInfo.firebase_image_url;
+              }
             } catch (e) {
               console.error('Error parsing device_info:', e);
             }
           }
           
-          // If we have a user_id, fetch the profile data separately
-          if (record.user_id) {
+          // If we couldn't find name in device_info, try other sources
+          if (username === 'Unknown') {
+            // Try to get from attendance_records where it's a registration record
             try {
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('id', record.user_id)
-                .single();
-                
-              if (profileData && !profileError) {
-                username = profileData.username || username;
-                photoUrl = profileData.avatar_url || photoUrl;
+              if (record.user_id) {
+                const { data: registrationData } = await supabase
+                  .from('attendance_records')
+                  .select('device_info')
+                  .contains('device_info', { registration: true })
+                  .eq('user_id', record.user_id)
+                  .maybeSingle();
+                  
+                if (registrationData && registrationData.device_info) {
+                  const regDeviceInfo = typeof registrationData.device_info === 'string'
+                    ? JSON.parse(registrationData.device_info)
+                    : registrationData.device_info;
+                    
+                  if (regDeviceInfo.metadata && regDeviceInfo.metadata.name) {
+                    username = regDeviceInfo.metadata.name;
+                    photoUrl = regDeviceInfo.metadata.firebase_image_url || photoUrl;
+                  }
+                }
+              }
+            
+              // If still unknown, try the profiles table
+              if (username === 'Unknown' && record.user_id) {
+                const { data: profileData } = await supabase
+                  .from('profiles')
+                  .select('username, avatar_url')
+                  .eq('id', record.user_id)
+                  .maybeSingle();
+                  
+                if (profileData && profileData.username) {
+                  username = profileData.username;
+                  photoUrl = profileData.avatar_url || photoUrl;
+                }
               }
             } catch (e) {
-              console.error('Error fetching profile data:', e);
-              // Continue with default values
+              console.error('Error fetching additional user data:', e);
+            }
+          }
+          
+          // If we still have no username but have an employee_id in device_info, try to look it up
+          if (username === 'Unknown' && record.device_info) {
+            try {
+              const deviceInfo = typeof record.device_info === 'string'
+                ? JSON.parse(record.device_info)
+                : record.device_info;
+                
+              if (deviceInfo.metadata && deviceInfo.metadata.employee_id) {
+                const employeeId = deviceInfo.metadata.employee_id;
+                
+                const { data: employeeData } = await supabase
+                  .from('attendance_records')
+                  .select('device_info')
+                  .contains('device_info', { employee_id: employeeId, registration: true })
+                  .maybeSingle();
+                  
+                if (employeeData && employeeData.device_info) {
+                  const empDeviceInfo = typeof employeeData.device_info === 'string'
+                    ? JSON.parse(employeeData.device_info)
+                    : employeeData.device_info;
+                    
+                  if (empDeviceInfo.metadata && empDeviceInfo.metadata.name) {
+                    username = empDeviceInfo.metadata.name;
+                    photoUrl = empDeviceInfo.metadata.firebase_image_url || photoUrl;
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('Error fetching employee data by ID:', e);
             }
           }
           
