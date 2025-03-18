@@ -10,6 +10,7 @@ const AttendanceToday = () => {
 
   useEffect(() => {
     const fetchRecentAttendance = async () => {
+      // First, get attendance records
       const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
         .select(`
@@ -18,8 +19,7 @@ const AttendanceToday = () => {
           timestamp,
           confidence_score,
           user_id,
-          device_info,
-          profiles:user_id(username, avatar_url)
+          device_info
         `)
         .order('timestamp', { ascending: false })
         .limit(10);
@@ -30,7 +30,8 @@ const AttendanceToday = () => {
       }
       
       if (attendanceData && attendanceData.length > 0) {
-        const enrichedData = attendanceData.map((record) => {
+        // Process attendance data and fetch profile info if needed
+        const processedData = await Promise.all(attendanceData.map(async (record) => {
           let username = 'Unknown';
           let photoUrl = '';
           
@@ -47,13 +48,18 @@ const AttendanceToday = () => {
             }
           }
           
-          // Use profiles data if available
-          if (record.profiles && record.profiles.username) {
-            username = record.profiles.username;
-          }
-          
-          if (record.profiles && record.profiles.avatar_url) {
-            photoUrl = record.profiles.avatar_url;
+          // If we have a user_id, fetch the profile data
+          if (record.user_id) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', record.user_id)
+              .single();
+              
+            if (profileData) {
+              username = profileData.username || username;
+              photoUrl = profileData.avatar_url || photoUrl;
+            }
           }
           
           return {
@@ -65,9 +71,9 @@ const AttendanceToday = () => {
             id: record.id,
             photoUrl: photoUrl
           };
-        });
+        }));
         
-        setRecentAttendance(enrichedData);
+        setRecentAttendance(processedData);
       } else {
         setRecentAttendance([]);
       }
