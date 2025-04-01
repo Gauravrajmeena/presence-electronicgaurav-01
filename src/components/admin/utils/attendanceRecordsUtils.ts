@@ -107,7 +107,7 @@ export const fetchDailyAttendance = async (
     // First try to fetch records where id equals faceId
     let { data: recordsById, error: errorById } = await supabase
       .from('attendance_records')
-      .select('id, timestamp, status, device_info')
+      .select('id, timestamp, status, device_info, user_id')
       .eq('id', faceId)
       .gte('timestamp', timestampStart)
       .lte('timestamp', timestampEnd)
@@ -116,7 +116,7 @@ export const fetchDailyAttendance = async (
     // Then try to fetch records where user_id equals faceId
     let { data: recordsByUserId, error: errorByUserId } = await supabase
       .from('attendance_records')
-      .select('id, timestamp, status, device_info')
+      .select('id, timestamp, status, device_info, user_id')
       .eq('user_id', faceId)
       .gte('timestamp', timestampStart)
       .lte('timestamp', timestampEnd)
