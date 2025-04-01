@@ -107,7 +107,7 @@ export const fetchDailyAttendance = async (
     // First try to fetch records where id equals faceId
     let { data: recordsById, error: errorById } = await supabase
       .from('attendance_records')
-      .select('id, timestamp, status, device_info, user_id')
+      .select('id, timestamp, status, device_info, user_id')  // Explicitly include user_id here
       .eq('id', faceId)
       .gte('timestamp', timestampStart)
       .lte('timestamp', timestampEnd)
@@ -116,7 +116,7 @@ export const fetchDailyAttendance = async (
     // Then try to fetch records where user_id equals faceId
     let { data: recordsByUserId, error: errorByUserId } = await supabase
       .from('attendance_records')
-      .select('id, timestamp, status, device_info, user_id')
+      .select('id, timestamp, status, device_info, user_id')  // Explicitly include user_id here
       .eq('user_id', faceId)
       .gte('timestamp', timestampStart)
       .lte('timestamp', timestampEnd)
@@ -180,7 +180,16 @@ export const fetchDailyAttendance = async (
         };
       }));
       
-      setDailyAttendance(normalizedRecords);
+      // Filter out unknown faces - only include faces with meaningful names
+      const knownFaces = normalizedRecords.filter(record => 
+        record.name !== 'User' && 
+        record.name !== 'Unknown Student' &&
+        !record.name.toLowerCase().includes('unknown')
+      );
+      
+      console.log('Filtered out unknown faces:', normalizedRecords.length - knownFaces.length);
+      
+      setDailyAttendance(knownFaces);
     } else {
       setDailyAttendance([]);
     }
