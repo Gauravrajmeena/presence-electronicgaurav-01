@@ -1,9 +1,22 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import CalendarLegend from './CalendarLegend';
 import { cn } from '@/lib/utils';
 import { UserCheck, Clock, X } from 'lucide-react';
+import { format } from 'date-fns';
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+interface AttendanceRecord {
+  name?: string;
+  timestamp: string;
+  status: string;
+}
 
 interface AttendanceCalendarViewProps {
   selectedDate: Date | undefined;
@@ -11,6 +24,7 @@ interface AttendanceCalendarViewProps {
   attendanceDays: Date[];
   lateAttendanceDays: Date[];
   absentDays: Date[];
+  attendanceRecords?: Record<string, AttendanceRecord[]>;
 }
 
 const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
@@ -18,15 +32,24 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
   setSelectedDate,
   attendanceDays,
   lateAttendanceDays,
-  absentDays
+  absentDays,
+  attendanceRecords = {}
 }) => {
   // Get current date for today indicator
   const today = new Date();
   // Get current month for default display
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   
-  // Helper function to render the day content with icons
+  // Helper function to get formatted date key from Date object
+  const getDateKey = (date: Date) => {
+    return format(date, 'yyyy-MM-dd');
+  };
+  
+  // Helper function to render the day content with icons and tooltips
   const renderDayContent = (day: Date) => {
+    const dateKey = getDateKey(day);
+    const records = attendanceRecords[dateKey] || [];
+    
     const isPresentDay = attendanceDays.some(d => 
       d.getDate() === day.getDate() && 
       d.getMonth() === day.getMonth() && 
@@ -44,16 +67,55 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
       d.getMonth() === day.getMonth() && 
       d.getFullYear() === day.getFullYear()
     );
+
+    let icon = null;
+    let tooltipContent = null;
+
+    if (isPresentDay) {
+      icon = <UserCheck className="h-3.5 w-3.5 text-white z-10" />;
+      
+      if (records.length > 0) {
+        const recordInfo = records.find(r => r.status.toLowerCase().includes('present'));
+        tooltipContent = recordInfo ? 
+          `${recordInfo.name || 'User'} - Present at ${format(new Date(recordInfo.timestamp), 'h:mm a')}` : 
+          'Present';
+      } else {
+        tooltipContent = 'Present';
+      }
+    } else if (isLateDay) {
+      icon = <Clock className="h-3.5 w-3.5 text-white z-10" />;
+      
+      if (records.length > 0) {
+        const recordInfo = records.find(r => r.status.toLowerCase().includes('late'));
+        tooltipContent = recordInfo ? 
+          `${recordInfo.name || 'User'} - Late at ${format(new Date(recordInfo.timestamp), 'h:mm a')}` : 
+          'Late';
+      } else {
+        tooltipContent = 'Late';
+      }
+    } else if (isAbsentDay) {
+      icon = <X className="h-3.5 w-3.5 text-white z-10" />;
+      tooltipContent = 'Absent';
+    }
     
     return (
-      <div className="relative w-full h-full flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {isPresentDay && <UserCheck className="h-3.5 w-3.5 text-white z-10" />}
-          {isLateDay && <Clock className="h-3.5 w-3.5 text-white z-10" />}
-          {isAbsentDay && <X className="h-3.5 w-3.5 text-white z-10" />}
-        </div>
-        <span className="z-20">{day.getDate()}</span>
-      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="relative w-full h-full flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                {icon}
+              </div>
+              <span className="z-20">{day.getDate()}</span>
+            </div>
+          </TooltipTrigger>
+          {tooltipContent && (
+            <TooltipContent>
+              <p>{tooltipContent}</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
     );
   };
   

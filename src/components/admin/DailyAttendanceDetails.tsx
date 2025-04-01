@@ -11,6 +11,7 @@ interface DailyAttendanceDetailsProps {
     id: string;
     timestamp: string;
     status: string;
+    name?: string;
   }[];
   isDateInArray: (date: Date, dateArray: Date[]) => boolean;
   attendanceDays: Date[];
@@ -111,9 +112,7 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
                   ) : (
                     <UserCheck className="h-4 w-4 text-green-500 mr-2" />
                   )}
-                  <span>
-                    {formatTime(record.timestamp)}
-                  </span>
+                  <span className="font-medium">{record.name}</span>
                 </div>
                 <span className="text-xs text-muted-foreground ml-6">
                   {formatDateTime(record.timestamp)}
@@ -136,9 +135,7 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
                   ) : (
                     <UserCheck className="h-4 w-4 text-green-500 mr-2" />
                   )}
-                  <span>
-                    {formatTime(record.timestamp)}
-                  </span>
+                  <span className="font-medium">{record.name || 'User'}</span>
                 </div>
                 <span className="text-xs text-muted-foreground ml-6">
                   {formatDateTime(record.timestamp)}

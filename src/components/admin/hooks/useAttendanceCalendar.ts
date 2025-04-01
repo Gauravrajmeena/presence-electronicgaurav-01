@@ -11,6 +11,14 @@ import {
   FaceInfo
 } from '../utils/attendanceUtils';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { format } from 'date-fns';
+
+interface AttendanceRecord {
+  id: string;
+  timestamp: string;
+  status: string;
+  name?: string;
+}
 
 export const useAttendanceCalendar = (selectedFaceId: string | null) => {
   const { toast } = useToast();
@@ -25,11 +33,10 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   
   const [loading, setLoading] = useState(false);
-  const [dailyAttendance, setDailyAttendance] = useState<{
-    id: string;
-    timestamp: string;
-    status: string;
-  }[]>([]);
+  const [dailyAttendance, setDailyAttendance] = useState<AttendanceRecord[]>([]);
+  
+  // Store attendance records with name and time info for calendar tooltips
+  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, AttendanceRecord[]>>({});
   
   // Generate working days for current month
   const currentDate = new Date();
@@ -47,25 +54,45 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
         // Extract attendance data
         const presentDates: Date[] = [];
         const lateDates: Date[] = [];
+        const recordsByDate: Record<string, AttendanceRecord[]> = {};
         
         faceRecords.forEach(record => {
           const recordDate = new Date(record.timestamp);
           // Reset time part for accurate date comparison
-          recordDate.setHours(0, 0, 0, 0);
+          const dateWithoutTime = new Date(recordDate);
+          dateWithoutTime.setHours(0, 0, 0, 0);
+          
+          // Format date as YYYY-MM-DD for key
+          const dateKey = format(dateWithoutTime, 'yyyy-MM-dd');
+          
+          // Add record to recordsByDate
+          if (!recordsByDate[dateKey]) {
+            recordsByDate[dateKey] = [];
+          }
+          
+          recordsByDate[dateKey].push({
+            id: record.id,
+            timestamp: record.timestamp,
+            status: record.status,
+            name: record.name
+          });
           
           // Check if this date is already in our arrays
           const dateExists = 
-            presentDates.some(d => d.getTime() === recordDate.getTime()) || 
-            lateDates.some(d => d.getTime() === recordDate.getTime());
+            presentDates.some(d => d.getTime() === dateWithoutTime.getTime()) || 
+            lateDates.some(d => d.getTime() === dateWithoutTime.getTime());
             
           if (!dateExists) {
             if (record.status === 'Present' || record.status.toLowerCase().includes('present')) {
-              presentDates.push(recordDate);
+              presentDates.push(dateWithoutTime);
             } else if (record.status === 'Late' || record.status.toLowerCase().includes('late')) {
-              lateDates.push(recordDate);
+              lateDates.push(dateWithoutTime);
             }
           }
         });
+        
+        // Update attendance records with name and time info
+        setAttendanceRecords(recordsByDate);
         
         // Merge with existing dates to avoid clearing database-loaded records
         if (presentDates.length > 0) {
@@ -108,7 +135,8 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
             setDailyAttendance(recordsForSelectedDate.map(record => ({
               id: record.id,
               timestamp: record.timestamp,
-              status: record.status.toLowerCase()
+              status: record.status.toLowerCase(),
+              name: record.name
             })));
           }
         }
@@ -205,6 +233,56 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     try {
       setLoading(true);
       await fetchAttendanceRecords(faceId, setAttendanceDays, setLateAttendanceDays);
+      
+      // Load more detailed attendance info with names
+      const { data: records } = await supabase
+        .from('attendance_records')
+        .select('id, timestamp, status, device_info')
+        .or(`user_id.eq.${faceId},id.eq.${faceId}`)
+        .order('timestamp', { ascending: false });
+        
+      if (records && records.length > 0) {
+        const recordsByDate: Record<string, AttendanceRecord[]> = {};
+        
+        // Process records to extract name info
+        for (const record of records) {
+          let name = 'User';
+          
+          // Try to extract name from device_info
+          if (record.device_info) {
+            try {
+              const deviceInfo = typeof record.device_info === 'string' 
+                ? JSON.parse(record.device_info) 
+                : record.device_info;
+              
+              if (deviceInfo.metadata && deviceInfo.metadata.name) {
+                name = deviceInfo.metadata.name;
+              } else if (deviceInfo.name) {
+                name = deviceInfo.name;
+              }
+            } catch (e) {
+              console.error('Error parsing device_info:', e);
+            }
+          }
+          
+          const recordDate = new Date(record.timestamp);
+          // Format date as YYYY-MM-DD for key
+          const dateKey = format(recordDate, 'yyyy-MM-dd');
+          
+          if (!recordsByDate[dateKey]) {
+            recordsByDate[dateKey] = [];
+          }
+          
+          recordsByDate[dateKey].push({
+            id: record.id,
+            timestamp: record.timestamp,
+            status: typeof record.status === 'string' ? record.status.toLowerCase() : 'unknown',
+            name
+          });
+        }
+        
+        setAttendanceRecords(recordsByDate);
+      }
     } catch (error) {
       console.error('Error loading attendance records:', error);
       toast({
@@ -217,10 +295,26 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     }
   };
 
-  // Load daily attendance
+  // Load daily attendance with name information
   const loadDailyAttendance = async (faceId: string, date: Date) => {
     try {
-      await fetchDailyAttendance(faceId, date, setDailyAttendance);
+      // Use the existing fetchDailyAttendance
+      await fetchDailyAttendance(faceId, date, (records) => {
+        // Enhance records with name if possible
+        const enhancedRecords = records.map(record => {
+          // Try to find name from attendanceRecords
+          const dateKey = format(new Date(record.timestamp), 'yyyy-MM-dd');
+          const matchingRecords = attendanceRecords[dateKey] || [];
+          const matchingRecord = matchingRecords.find(r => r.id === record.id);
+          
+          return {
+            ...record,
+            name: matchingRecord?.name || selectedFace?.name || 'User'
+          };
+        });
+        
+        setDailyAttendance(enhancedRecords);
+      });
     } catch (error) {
       console.error('Error loading daily attendance:', error);
       toast({
@@ -230,6 +324,52 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
       });
     }
   };
+
+  // Subscribe to real-time updates and load initial data
+  useEffect(() => {
+    let attendanceChannel: any = null;
+
+    if (selectedFaceId) {
+      fetchFaceDetails(selectedFaceId);
+      loadAttendanceRecords(selectedFaceId);
+      
+      // Generate working days for the current month
+      setWorkingDays(generateWorkingDays(currentDate.getFullYear(), currentDate.getMonth()));
+
+      attendanceChannel = supabase
+        .channel(`attendance-calendar-${selectedFaceId}`)
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'attendance_records'
+          }, 
+          (payload) => {
+            console.log('Real-time update received for attendance calendar:', payload);
+            loadAttendanceRecords(selectedFaceId);
+            if (selectedDate) {
+              loadDailyAttendance(selectedFaceId, selectedDate);
+            }
+          }
+        )
+        .subscribe();
+
+      console.log('Subscribed to real-time updates for attendance calendar');
+    } else {
+      setSelectedFace(null);
+      setAttendanceDays([]);
+      setLateAttendanceDays([]);
+      setAbsentDays([]);
+      setAttendanceRecords({});
+    }
+
+    return () => {
+      if (attendanceChannel) {
+        supabase.removeChannel(attendanceChannel);
+        console.log('Unsubscribed from attendance calendar updates');
+      }
+    };
+  }, [selectedFaceId]);
 
   return {
     attendanceDays,
@@ -241,6 +381,7 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     loading,
     dailyAttendance,
     workingDays,
-    isDateInArray
+    isDateInArray,
+    attendanceRecords
   };
 };

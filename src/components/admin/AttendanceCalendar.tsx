@@ -21,7 +21,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
     setSelectedDate,
     dailyAttendance,
     workingDays,
-    isDateInArray
+    isDateInArray,
+    attendanceRecords
   } = useAttendanceCalendar(selectedFaceId);
 
   return (
@@ -49,6 +50,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
                   attendanceDays={attendanceDays}
                   lateAttendanceDays={lateAttendanceDays}
                   absentDays={absentDays}
+                  attendanceRecords={attendanceRecords}
                 />
               </CardContent>
             </Card>
