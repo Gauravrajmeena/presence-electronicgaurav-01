@@ -2,6 +2,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { SetDatesFunction, AttendanceRecord } from './types';
 
+// Type guard to check if an object is a record with metadata
+function hasMetadata(obj: any): obj is { metadata: any } {
+  return obj && typeof obj === 'object' && 'metadata' in obj;
+}
+
+// Type guard to check if an object has a name property
+function hasName(obj: any): obj is { name: string } {
+  return obj && typeof obj === 'object' && 'name' in obj;
+}
+
 // Fetch attendance records from Supabase with improved status normalization
 export const fetchAttendanceRecords = async (
   faceId: string,
@@ -47,10 +57,15 @@ export const fetchAttendanceRecords = async (
       let name = '';
       try {
         const deviceInfo = record.device_info;
-        if (deviceInfo && typeof deviceInfo === 'object') {
-          if (deviceInfo.metadata && deviceInfo.metadata.name) {
-            name = deviceInfo.metadata.name;
-          } else if (deviceInfo.name) {
+        if (deviceInfo && typeof deviceInfo === 'object' && !Array.isArray(deviceInfo)) {
+          // Type-safe access to metadata
+          if (hasMetadata(deviceInfo) && deviceInfo.metadata) {
+            if (hasMetadata(deviceInfo.metadata) && hasName(deviceInfo.metadata)) {
+              name = deviceInfo.metadata.name;
+            }
+          }
+          // Direct name property on device_info
+          if (hasName(deviceInfo)) {
             name = deviceInfo.name;
           }
         }
@@ -165,10 +180,17 @@ export const fetchDailyAttendance = async (
               ? JSON.parse(record.device_info) 
               : record.device_info;
             
-            if (deviceInfo.metadata && deviceInfo.metadata.name) {
-              name = deviceInfo.metadata.name;
-            } else if (deviceInfo.name) {
-              name = deviceInfo.name;
+            if (typeof deviceInfo === 'object' && !Array.isArray(deviceInfo)) {
+              // Type-safe access to metadata
+              if (hasMetadata(deviceInfo) && deviceInfo.metadata) {
+                if (hasName(deviceInfo.metadata)) {
+                  name = deviceInfo.metadata.name;
+                }
+              } 
+              // Direct name property on device_info
+              if (hasName(deviceInfo)) {
+                name = deviceInfo.name;
+              }
             }
           } catch (e) {
             console.error('Error parsing device_info:', e);
