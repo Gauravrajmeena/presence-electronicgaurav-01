@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 interface AdminFacesListProps {
   viewMode: 'grid' | 'list';
   selectedFaceId: string | null;
+  nameFilter: string; // Add nameFilter prop
   setSelectedFaceId: (id: string | null) => void;
 }
 
@@ -35,6 +36,7 @@ interface RegisteredFace {
 const AdminFacesList: React.FC<AdminFacesListProps> = ({ 
   viewMode, 
   selectedFaceId,
+  nameFilter,
   setSelectedFaceId
 }) => {
   const { toast } = useToast();
@@ -43,11 +45,20 @@ const AdminFacesList: React.FC<AdminFacesListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [attendanceCounts, setAttendanceCounts] = useState<Record<string, number>>({});
 
-  const filteredFaces = faces.filter(face => 
-    face.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    face.employee_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    face.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Apply both name filter and search term
+  const filteredFaces = faces.filter(face => {
+    // First apply name filter
+    if (nameFilter !== 'all' && face.id !== nameFilter) {
+      return false;
+    }
+    
+    // Then apply search term
+    return (
+      face.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      face.employee_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      face.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   useEffect(() => {
     fetchRegisteredFaces();
@@ -70,7 +81,7 @@ const AdminFacesList: React.FC<AdminFacesListProps> = ({
     return () => {
       supabase.removeChannel(attendanceChannel);
     };
-  }, []);
+  }, [nameFilter]); // Add nameFilter as a dependency
 
   const fetchRegisteredFaces = async () => {
     try {
@@ -97,7 +108,13 @@ const AdminFacesList: React.FC<AdminFacesListProps> = ({
             total_attendance: 0,
             last_attendance: record.timestamp || 'Never'
           };
-        });
+        })
+        // Filter out unknown faces
+        .filter(face => 
+          face.name !== 'Unknown' && 
+          face.name !== 'User' && 
+          !face.name.toLowerCase().includes('unknown')
+        );
 
         setFaces(processedFaces);
         
@@ -227,7 +244,7 @@ const AdminFacesList: React.FC<AdminFacesListProps> = ({
             <User className="h-10 w-10 text-muted-foreground" />
             <h3 className="text-lg font-medium">No registered faces found</h3>
             <p className="text-sm text-muted-foreground">
-              {searchTerm ? 'Try adjusting your search terms' : 'Register new faces to see them here'}
+              {searchTerm || nameFilter !== 'all' ? 'Try adjusting your search or filter' : 'Register new faces to see them here'}
             </p>
           </div>
         </Card>

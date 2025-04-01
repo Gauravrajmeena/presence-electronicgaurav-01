@@ -6,9 +6,16 @@ import AdminFacesList from '@/components/admin/AdminFacesList';
 import AttendanceCalendar from '@/components/admin/AttendanceCalendar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Calendar } from 'lucide-react';
+import { User, Calendar, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const Admin = () => {
   const { toast } = useToast();
@@ -16,8 +23,52 @@ const Admin = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState('faces');
   const [attendanceUpdated, setAttendanceUpdated] = useState(false);
+  const [nameFilter, setNameFilter] = useState<string>('all');
+  const [availableFaces, setAvailableFaces] = useState<{id: string, name: string}[]>([]);
 
   useEffect(() => {
+    // Fetch available face names for the filter dropdown
+    const fetchFaceNames = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('attendance_records')
+          .select('id, device_info')
+          .contains('device_info', { registration: true });
+          
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const uniqueFaces = data.reduce((acc: {id: string, name: string}[], record) => {
+            try {
+              const deviceInfo = record.device_info as any;
+              const name = deviceInfo?.metadata?.name || 'Unknown';
+              
+              // Skip unknown faces
+              if (name === 'Unknown' || name === 'User' || name.toLowerCase().includes('unknown')) {
+                return acc;
+              }
+              
+              // Check if we already have this name
+              if (!acc.some(face => face.name === name)) {
+                acc.push({ id: record.id, name });
+              }
+              
+              return acc;
+            } catch (e) {
+              console.error('Error processing record:', e);
+              return acc;
+            }
+          }, []);
+          
+          setAvailableFaces(uniqueFaces);
+        }
+      } catch (error) {
+        console.error('Error fetching face names:', error);
+      }
+    };
+    
+    fetchFaceNames();
+    
     // Set up real-time channel for general admin updates
     const adminChannel = supabase
       .channel('admin-dashboard')
@@ -48,6 +99,9 @@ const Admin = () => {
               variant: "default",
             });
           }
+          
+          // Refresh the list of available faces
+          fetchFaceNames();
         }
       )
       .subscribe();
@@ -75,9 +129,28 @@ const Admin = () => {
         title="Admin Dashboard" 
         description="Manage registered faces and view detailed attendance records in real-time"
       >
-        <Button variant="outline" onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
-          {viewMode === 'grid' ? 'List View' : 'Grid View'}
-        </Button>
+        <div className="flex gap-2">
+          <Select value={nameFilter} onValueChange={setNameFilter}>
+            <SelectTrigger className="w-[180px]">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <SelectValue placeholder="Filter by name" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Registered Faces</SelectItem>
+              {availableFaces.map((face) => (
+                <SelectItem key={face.id} value={face.id}>
+                  {face.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Button variant="outline" onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
+            {viewMode === 'grid' ? 'List View' : 'Grid View'}
+          </Button>
+        </div>
       </PageHeader>
 
       <Tabs 
@@ -111,7 +184,8 @@ const Admin = () => {
         <TabsContent value="faces" className="space-y-4">
           <AdminFacesList 
             viewMode={viewMode} 
-            selectedFaceId={selectedFaceId} 
+            selectedFaceId={selectedFaceId}
+            nameFilter={nameFilter}
             setSelectedFaceId={(id) => {
               setSelectedFaceId(id);
               if (id) {
