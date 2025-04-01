@@ -41,6 +41,32 @@ export const fetchAttendanceRecords = async (
       status: typeof record.status === 'string' ? record.status.toLowerCase() : record.status
     }));
     
+    // Filter out records for unknown faces
+    allRecords = allRecords.filter(record => {
+      // Extract name information from device_info if available
+      let name = '';
+      try {
+        const deviceInfo = record.device_info;
+        if (deviceInfo && typeof deviceInfo === 'object') {
+          if (deviceInfo.metadata && deviceInfo.metadata.name) {
+            name = deviceInfo.metadata.name;
+          } else if (deviceInfo.name) {
+            name = deviceInfo.name;
+          }
+        }
+      } catch (e) {
+        console.error('Error extracting name from device_info:', e);
+      }
+      
+      // Filter out records with unknown names
+      return name !== '' && 
+             name !== 'User' && 
+             name !== 'Unknown Student' && 
+             !name.toLowerCase().includes('unknown');
+    });
+    
+    console.log('Records after filtering unknown faces:', allRecords.length);
+    
     // Filter records with normalized status check (includes present, Present)
     const presentRecords = allRecords.filter(record => 
       record.status === 'present' || 

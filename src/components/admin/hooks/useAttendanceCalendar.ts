@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,43 +28,40 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
   const [absentDays, setAbsentDays] = useState<Date[]>([]);
   const [selectedFace, setSelectedFace] = useState<FaceInfo | null>(null);
   
-  // Use current date as default selected date
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   
   const [loading, setLoading] = useState(false);
   const [dailyAttendance, setDailyAttendance] = useState<AttendanceRecord[]>([]);
   
-  // Store attendance records with name and time info for calendar tooltips
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, AttendanceRecord[]>>({});
   
-  // Generate working days for current month
   const currentDate = new Date();
   const [workingDays, setWorkingDays] = useState<Date[]>([]);
 
-  // Process recent attendance data for the selected face
   useEffect(() => {
     if (selectedFaceId && recentAttendance.length > 0) {
-      // Find records for the selected face
       const faceRecords = recentAttendance.filter(record => 
         record.user_id === selectedFaceId || record.id === selectedFaceId
       );
       
-      if (faceRecords.length > 0) {
-        // Extract attendance data
+      const knownFaceRecords = faceRecords.filter(record => 
+        record.name !== 'User' && 
+        record.name !== 'Unknown Student' && 
+        !record.name.toLowerCase().includes('unknown')
+      );
+      
+      if (knownFaceRecords.length > 0) {
         const presentDates: Date[] = [];
         const lateDates: Date[] = [];
         const recordsByDate: Record<string, AttendanceRecord[]> = {};
         
-        faceRecords.forEach(record => {
+        knownFaceRecords.forEach(record => {
           const recordDate = new Date(record.timestamp);
-          // Reset time part for accurate date comparison
           const dateWithoutTime = new Date(recordDate);
           dateWithoutTime.setHours(0, 0, 0, 0);
           
-          // Format date as YYYY-MM-DD for key
           const dateKey = format(dateWithoutTime, 'yyyy-MM-dd');
           
-          // Add record to recordsByDate
           if (!recordsByDate[dateKey]) {
             recordsByDate[dateKey] = [];
           }
@@ -77,7 +73,6 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
             name: record.name
           });
           
-          // Check if this date is already in our arrays
           const dateExists = 
             presentDates.some(d => d.getTime() === dateWithoutTime.getTime()) || 
             lateDates.some(d => d.getTime() === dateWithoutTime.getTime());
@@ -91,10 +86,8 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
           }
         });
         
-        // Update attendance records with name and time info
         setAttendanceRecords(recordsByDate);
         
-        // Merge with existing dates to avoid clearing database-loaded records
         if (presentDates.length > 0) {
           setAttendanceDays(prev => {
             const combined = [...prev];
@@ -119,14 +112,13 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
           });
         }
         
-        // If the selected date matches any recent records, update daily attendance
         if (selectedDate) {
           const selectedDateStart = new Date(selectedDate);
           selectedDateStart.setHours(0, 0, 0, 0);
           const selectedDateEnd = new Date(selectedDate);
           selectedDateEnd.setHours(23, 59, 59, 999);
           
-          const recordsForSelectedDate = faceRecords.filter(record => {
+          const recordsForSelectedDate = knownFaceRecords.filter(record => {
             const recordDate = new Date(record.timestamp);
             return recordDate >= selectedDateStart && recordDate <= selectedDateEnd;
           });
@@ -144,7 +136,6 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     }
   }, [selectedFaceId, recentAttendance, selectedDate]);
 
-  // Subscribe to real-time updates and load initial data
   useEffect(() => {
     let attendanceChannel: any = null;
 
@@ -152,7 +143,6 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
       fetchFaceDetails(selectedFaceId);
       loadAttendanceRecords(selectedFaceId);
       
-      // Generate working days for the current month
       setWorkingDays(generateWorkingDays(currentDate.getFullYear(), currentDate.getMonth()));
 
       attendanceChannel = supabase
@@ -179,6 +169,7 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
       setAttendanceDays([]);
       setLateAttendanceDays([]);
       setAbsentDays([]);
+      setAttendanceRecords({});
     }
 
     return () => {
@@ -189,7 +180,6 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     };
   }, [selectedFaceId]);
 
-  // Load daily attendance when selected date changes
   useEffect(() => {
     if (selectedFaceId && selectedDate) {
       loadDailyAttendance(selectedFaceId, selectedDate);
@@ -198,12 +188,10 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     }
   }, [selectedFaceId, selectedDate]);
 
-  // Calculate absent days
   useEffect(() => {
     if (workingDays.length > 0 && (attendanceDays.length > 0 || lateAttendanceDays.length > 0)) {
       const today = new Date();
       const absent = workingDays.filter(workDay => {
-        // Only consider days up to today for absences
         if (workDay > today) return false;
         
         return !isDateInArray(workDay, attendanceDays) && !isDateInArray(workDay, lateAttendanceDays);
@@ -213,7 +201,6 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     }
   }, [workingDays, attendanceDays, lateAttendanceDays]);
 
-  // Fetch face details
   const fetchFaceDetails = async (faceId: string) => {
     try {
       const faceInfo = await fetchSelectedFace(faceId);
@@ -228,13 +215,11 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     }
   };
 
-  // Load attendance records
   const loadAttendanceRecords = async (faceId: string) => {
     try {
       setLoading(true);
       await fetchAttendanceRecords(faceId, setAttendanceDays, setLateAttendanceDays);
       
-      // Load more detailed attendance info with names
       const { data: records } = await supabase
         .from('attendance_records')
         .select('id, timestamp, status, device_info')
@@ -244,11 +229,9 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
       if (records && records.length > 0) {
         const recordsByDate: Record<string, AttendanceRecord[]> = {};
         
-        // Process records to extract name info
         for (const record of records) {
           let name = selectedFace?.name || 'User';
           
-          // Try to extract name from device_info
           if (record.device_info) {
             try {
               const deviceInfo = typeof record.device_info === 'string' 
@@ -265,8 +248,11 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
             }
           }
           
+          if (name === 'User' || name === 'Unknown Student' || name.toLowerCase().includes('unknown')) {
+            continue;
+          }
+          
           const recordDate = new Date(record.timestamp);
-          // Format date as YYYY-MM-DD for key
           const dateKey = format(recordDate, 'yyyy-MM-dd');
           
           if (!recordsByDate[dateKey]) {
@@ -295,14 +281,10 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     }
   };
 
-  // Load daily attendance with name information
   const loadDailyAttendance = async (faceId: string, date: Date) => {
     try {
-      // Use the existing fetchDailyAttendance to get initial data
       await fetchDailyAttendance(faceId, date, (records) => {
-        // Enhance records with name from selected face
         const enhancedRecords = records.map(record => {
-          // Try to find name from attendanceRecords
           const dateKey = format(new Date(record.timestamp), 'yyyy-MM-dd');
           const matchingRecords = attendanceRecords[dateKey] || [];
           const matchingRecord = matchingRecords.find(r => r.id === record.id);
@@ -325,7 +307,6 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
     }
   };
 
-  // Subscribe to real-time updates and load initial data
   useEffect(() => {
     let attendanceChannel: any = null;
 
@@ -333,7 +314,6 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
       fetchFaceDetails(selectedFaceId);
       loadAttendanceRecords(selectedFaceId);
       
-      // Generate working days for the current month
       setWorkingDays(generateWorkingDays(currentDate.getFullYear(), currentDate.getMonth()));
 
       attendanceChannel = supabase
