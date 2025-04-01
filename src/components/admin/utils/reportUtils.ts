@@ -1,4 +1,3 @@
-
 import { format } from 'date-fns';
 import { FaceInfo, isDateInArray } from './attendanceUtils';
 
@@ -86,22 +85,31 @@ export const generatePrintableReport = ({
       
       let status = 'N/A';
       let statusClass = '';
+      let statusIcon = '';
       
       if (isPresent) {
         status = 'Present';
         statusClass = 'status-present';
+        statusIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-icon"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>';
       } else if (isLate) {
         status = 'Late';
         statusClass = 'status-late';
+        statusIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
       } else if (isAbsent) {
         status = 'Absent';
         statusClass = 'status-absent';
+        statusIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-icon"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
       }
       
       return `
         <tr>
           <td>${formatDate(date)}</td>
-          <td><span class="status-badge ${statusClass}">${status}</span></td>
+          <td>
+            <div class="status-with-icon">
+              ${statusIcon}
+              <span class="status-badge ${statusClass}">${status}</span>
+            </div>
+          </td>
           <td>${(isPresent || isLate) ? attendanceTime || 'N/A' : '-'}</td>
         </tr>
       `;
@@ -166,6 +174,13 @@ export const generatePrintableReport = ({
           .status-absent {
             background-color: #ef4444;
           }
+          .status-with-icon {
+            display: flex;
+            align-items: center;
+          }
+          .status-icon {
+            margin-right: 4px;
+          }
           table {
             width: 100%;
             border-collapse: collapse;
@@ -178,6 +193,20 @@ export const generatePrintableReport = ({
           }
           th {
             background-color: #f1f5f9;
+          }
+          .attendance-summary-icons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .icon-present {
+            color: #10b981;
+          }
+          .icon-late {
+            color: #f59e0b;
+          }
+          .icon-absent {
+            color: #ef4444;
           }
           @media print {
             body {
@@ -224,15 +253,24 @@ export const generatePrintableReport = ({
           </div>
           <div class="info-item">
             <div class="label">Present Days:</div>
-            <div>${presentCount} <span class="status-badge status-present">Present</span></div>
+            <div class="attendance-summary-icons">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-present"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>
+              ${presentCount} <span class="status-badge status-present">Present</span>
+            </div>
           </div>
           <div class="info-item">
             <div class="label">Late Days:</div>
-            <div>${lateCount} <span class="status-badge status-late">Late</span></div>
+            <div class="attendance-summary-icons">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-late"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              ${lateCount} <span class="status-badge status-late">Late</span>
+            </div>
           </div>
           <div class="info-item">
             <div class="label">Absent Days:</div>
-            <div>${absentCount} <span class="status-badge status-absent">Absent</span></div>
+            <div class="attendance-summary-icons">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-absent"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              ${absentCount} <span class="status-badge status-absent">Absent</span>
+            </div>
           </div>
           <div class="info-item">
             <div class="label">Attendance Rate:</div>
@@ -341,4 +379,3 @@ export const exportToCSV = ({
   link.click();
   document.body.removeChild(link);
 };
-

@@ -89,9 +89,13 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
 
   return (
     <div className="border-t pt-4 mt-4">
-      <h3 className="font-medium mb-2">
+      <h3 className="font-medium mb-2 flex items-center">
         {formatDateWithDay(selectedDate)}
-        {isToday(selectedDate) && <span className="ml-2 text-sm text-green-500">(Today)</span>}
+        {isToday(selectedDate) && (
+          <span className="ml-2 text-sm text-green-500 flex items-center">
+            (Today)
+          </span>
+        )}
       </h3>
       
       {isFutureDate(selectedDate) ? (
@@ -99,7 +103,7 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
       ) : hasRealtimeRecords ? (
         <div className="space-y-2">
           {realtimeRecords.map((record) => (
-            <div key={record.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+            <div key={record.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md animate-fade-in">
               <div className="flex flex-col">
                 <div className="flex items-center">
                   {record.status === 'Late' ? (
@@ -124,7 +128,7 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
       ) : hasAttendanceRecords ? (
         <div className="space-y-2">
           {dailyAttendance.map((record) => (
-            <div key={record.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+            <div key={record.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md animate-fade-in">
               <div className="flex flex-col">
                 <div className="flex items-center">
                   {record.status === 'late' ? (
@@ -146,18 +150,26 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
             </div>
           ))}
         </div>
-      ) : isPresentDate || isLateDate ? (
-        <div className="flex items-center justify-center p-4 bg-green-50 rounded-md">
+      ) : isPresentDate ? (
+        <div className="flex items-center justify-center p-4 bg-green-50 rounded-md animate-fade-in">
           <UserCheck className="h-5 w-5 text-green-500 mr-2" />
           <span className="text-green-500 font-medium">Present</span>
         </div>
+      ) : isLateDate ? (
+        <div className="flex items-center justify-center p-4 bg-amber-50 rounded-md animate-fade-in">
+          <Clock className="h-5 w-5 text-amber-500 mr-2" />
+          <span className="text-amber-500 font-medium">Late</span>
+        </div>
       ) : isAbsentDate ? (
-        <div className="flex items-center justify-center p-4 bg-red-50 rounded-md">
+        <div className="flex items-center justify-center p-4 bg-red-50 rounded-md animate-fade-in">
           <X className="h-5 w-5 text-red-500 mr-2" />
           <span className="text-red-500 font-medium">Absent</span>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No attendance recorded for this date.</p>
+        <div className="flex items-center justify-center p-4 bg-red-50 rounded-md animate-fade-in">
+          <X className="h-5 w-5 text-red-500 mr-2" />
+          <span className="text-red-500 font-medium">Absent</span>
+        </div>
       )}
     </div>
   );

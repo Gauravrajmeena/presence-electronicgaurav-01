@@ -3,6 +3,7 @@ import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import CalendarLegend from './CalendarLegend';
 import { cn } from '@/lib/utils';
+import { UserCheck, Clock, X } from 'lucide-react';
 
 interface AttendanceCalendarViewProps {
   selectedDate: Date | undefined;
@@ -23,6 +24,38 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
   const today = new Date();
   // Get current month for default display
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  
+  // Helper function to render the day content with icons
+  const renderDayContent = (day: Date) => {
+    const isPresentDay = attendanceDays.some(d => 
+      d.getDate() === day.getDate() && 
+      d.getMonth() === day.getMonth() && 
+      d.getFullYear() === day.getFullYear()
+    );
+    
+    const isLateDay = lateAttendanceDays.some(d => 
+      d.getDate() === day.getDate() && 
+      d.getMonth() === day.getMonth() && 
+      d.getFullYear() === day.getFullYear()
+    );
+    
+    const isAbsentDay = absentDays.some(d => 
+      d.getDate() === day.getDate() && 
+      d.getMonth() === day.getMonth() && 
+      d.getFullYear() === day.getFullYear()
+    );
+    
+    return (
+      <div className="relative w-full h-full flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {isPresentDay && <UserCheck className="h-3.5 w-3.5 text-white z-10" />}
+          {isLateDay && <Clock className="h-3.5 w-3.5 text-white z-10" />}
+          {isAbsentDay && <X className="h-3.5 w-3.5 text-white z-10" />}
+        </div>
+        <span className="z-20">{day.getDate()}</span>
+      </div>
+    );
+  };
   
   return (
     <div className="flex flex-col items-center animate-fade-in relative">
@@ -65,6 +98,9 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
             boxShadow: "0 0 15px 2px rgba(0, 120, 255, 0.3)",
             transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)"
           }
+        }}
+        components={{
+          DayContent: ({ date }) => renderDayContent(date)
         }}
         modifiers={{
           present: attendanceDays || [],
