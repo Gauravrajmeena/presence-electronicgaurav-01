@@ -70,9 +70,15 @@ const DailyAttendanceDetails: React.FC<DailyAttendanceDetailsProps> = ({
     const selectedDateEnd = new Date(selectedDate);
     selectedDateEnd.setHours(23, 59, 59, 999);
     
+    // Get the name of the currently selected user from dailyAttendance
+    const selectedUserName = dailyAttendance.length > 0 ? dailyAttendance[0].name : null;
+    
+    // Filter records by date AND name
     return recentAttendance.filter(record => {
       const recordDate = new Date(record.timestamp);
-      return recordDate >= selectedDateStart && recordDate <= selectedDateEnd;
+      return recordDate >= selectedDateStart && 
+             recordDate <= selectedDateEnd && 
+             (!selectedUserName || record.name === selectedUserName);
     });
   };
 

@@ -107,7 +107,7 @@ export const fetchDailyAttendance = async (
     // First try to fetch records where id equals faceId
     let { data: recordsById, error: errorById } = await supabase
       .from('attendance_records')
-      .select('id, timestamp, status')
+      .select('id, timestamp, status, device_info')
       .eq('id', faceId)
       .gte('timestamp', timestampStart)
       .lte('timestamp', timestampEnd)
@@ -116,7 +116,7 @@ export const fetchDailyAttendance = async (
     // Then try to fetch records where user_id equals faceId
     let { data: recordsByUserId, error: errorByUserId } = await supabase
       .from('attendance_records')
-      .select('id, timestamp, status')
+      .select('id, timestamp, status, device_info')
       .eq('user_id', faceId)
       .gte('timestamp', timestampStart)
       .lte('timestamp', timestampEnd)
@@ -127,13 +127,59 @@ export const fetchDailyAttendance = async (
     
     if (allRecords.length > 0) {
       console.log('Daily attendance records found:', allRecords.length);
-      // Normalize status field for consistent processing
-      const normalizedRecords = allRecords.map(record => ({
-        ...record,
-        status: typeof record.status === 'string' ? 
-          record.status.toLowerCase() === 'unauthorized' ? 'present' : record.status.toLowerCase() 
-          : 'unknown'
+      
+      // Get names from device_info where available
+      const normalizedRecords = await Promise.all(allRecords.map(async (record) => {
+        let name = 'User';
+        
+        // Try to extract name from device_info
+        if (record.device_info) {
+          try {
+            const deviceInfo = typeof record.device_info === 'string' 
+              ? JSON.parse(record.device_info) 
+              : record.device_info;
+            
+            if (deviceInfo.metadata && deviceInfo.metadata.name) {
+              name = deviceInfo.metadata.name;
+            } else if (deviceInfo.name) {
+              name = deviceInfo.name;
+            }
+          } catch (e) {
+            console.error('Error parsing device_info:', e);
+          }
+        }
+        
+        // If we couldn't find name in device_info, try to get it from profiles table
+        if (name === 'User') {
+          try {
+            // First try to get the user_id if this record doesn't have it directly
+            const userId = record.user_id || faceId;
+            
+            if (userId) {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', userId)
+                .maybeSingle();
+                
+              if (profileData && profileData.username) {
+                name = profileData.username;
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching profile data:', e);
+          }
+        }
+        
+        return {
+          ...record,
+          name,
+          status: typeof record.status === 'string' ? 
+            record.status.toLowerCase() === 'unauthorized' ? 'present' : record.status.toLowerCase() 
+            : 'unknown'
+        };
       }));
+      
       setDailyAttendance(normalizedRecords);
     } else {
       setDailyAttendance([]);

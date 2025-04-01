@@ -246,7 +246,7 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
         
         // Process records to extract name info
         for (const record of records) {
-          let name = 'User';
+          let name = selectedFace?.name || 'User';
           
           // Try to extract name from device_info
           if (record.device_info) {
@@ -298,9 +298,9 @@ export const useAttendanceCalendar = (selectedFaceId: string | null) => {
   // Load daily attendance with name information
   const loadDailyAttendance = async (faceId: string, date: Date) => {
     try {
-      // Use the existing fetchDailyAttendance
+      // Use the existing fetchDailyAttendance to get initial data
       await fetchDailyAttendance(faceId, date, (records) => {
-        // Enhance records with name if possible
+        // Enhance records with name from selected face
         const enhancedRecords = records.map(record => {
           // Try to find name from attendanceRecords
           const dateKey = format(new Date(record.timestamp), 'yyyy-MM-dd');

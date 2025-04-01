@@ -76,9 +76,13 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
       
       if (records.length > 0) {
         const recordInfo = records.find(r => r.status.toLowerCase().includes('present'));
-        tooltipContent = recordInfo ? 
-          `${recordInfo.name || 'User'} - Present at ${format(new Date(recordInfo.timestamp), 'h:mm a')}` : 
-          'Present';
+        if (recordInfo) {
+          const userName = recordInfo.name || 'User';
+          const attendanceTime = format(new Date(recordInfo.timestamp), 'h:mm a');
+          tooltipContent = `${userName} - Present at ${attendanceTime}`;
+        } else {
+          tooltipContent = 'Present';
+        }
       } else {
         tooltipContent = 'Present';
       }
@@ -87,9 +91,13 @@ const AttendanceCalendarView: React.FC<AttendanceCalendarViewProps> = ({
       
       if (records.length > 0) {
         const recordInfo = records.find(r => r.status.toLowerCase().includes('late'));
-        tooltipContent = recordInfo ? 
-          `${recordInfo.name || 'User'} - Late at ${format(new Date(recordInfo.timestamp), 'h:mm a')}` : 
-          'Late';
+        if (recordInfo) {
+          const userName = recordInfo.name || 'User';
+          const attendanceTime = format(new Date(recordInfo.timestamp), 'h:mm a');
+          tooltipContent = `${userName} - Late at ${attendanceTime}`;
+        } else {
+          tooltipContent = 'Late';
+        }
       } else {
         tooltipContent = 'Late';
       }
